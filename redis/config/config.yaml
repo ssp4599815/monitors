@@ -1,0 +1,30 @@
+monitor:
+  config_dir: "/etc/redis_monitor/monitor.conf"
+
+redis:
+  - line: "dev"
+    password: ""
+    addr:
+      - "10.211.55.12:8001"
+      - "10.211.55.12:8002"
+      - "10.211.55.12:8003"
+      - "10.211.55.12:8004"
+      - "10.211.55.12:8005"
+      - "10.211.55.12:8006"
+email:
+  host: "mail.163.com"
+  port: 25
+  user: "xx@163.com"
+  password: "xxxx"
+  tos:
+    - "xx@163.com"
+
+kafka:
+  version: "2.1.1"
+  brokers:
+    - "10.211.55.13:9092"
+  consumer:
+    assignor: "sticky" # 可选：sticky、roundrobin、range
+    offset_commit_interval: 1s # 提交offset的间隔时间
+    offset_oldest: true  # 默认为 OffsetNewest
+    return_errors: true # 默认为 false

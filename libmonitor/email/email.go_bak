@@ -1,0 +1,52 @@
+package email
+
+import (
+	"fmt"
+	"github.com/go-gomail/gomail"
+	"github.com/ssp4599815/redis-monitor/config"
+)
+
+// 全局变量，因为发件人账号、密码，需要在发送时才指定
+// 注意，由于是小写，外面的包无法使用
+var (
+	serverHost   string
+	fromEmail    string
+	fromPassword string
+	serverPort   int
+	mail         *gomail.Message
+)
+
+func init() {
+	conf, err := config.ParseConfig()
+	if err != nil {
+		fmt.Println("parse config failed,err: ", err)
+	}
+
+	toers := conf.Email.Tos
+	serverHost = conf.Email.Host
+	serverPort = conf.Email.Port
+	fromEmail = conf.Email.User
+	fromPassword = conf.Email.Password
+
+	mail = gomail.NewMessage()
+	// 收件人可以有多个，故用此方式
+	mail.SetHeader("To", toers...)
+	// 发件人
+	// 第三个参数为发件人别名，如"李大锤"，可以为空（此时则为邮箱名称）
+	mail.SetAddressHeader("From", fromEmail, "")
+}
+
+func SentEmail(subject, body string) {
+	// 主体
+	mail.SetHeader("Subject", subject)
+
+	// 正文
+	mail.SetBody("text/html", body)
+
+	d := gomail.NewDialer(serverHost, serverPort, fromEmail, fromPassword)
+	// 发送
+	err := d.DialAndSend(mail)
+	if err != nil {
+		panic(err)
+	}
+}

@@ -6,7 +6,7 @@ import (
 
 type Config struct {
 	Monitor MonitorConfig
-	Redis   RedisConfig
+	Redis   []RedisHost
 	Kafka   KafkaConfig
 	Email   EmailConfig
 }
@@ -18,10 +18,6 @@ type MonitorConfig struct {
 }
 
 // redis 相关配置
-type RedisConfig struct {
-	Hosts []RedisHost
-}
-
 type RedisHost struct {
 	Line     string   `yaml:"line"`
 	Password string   `yaml:"password"`

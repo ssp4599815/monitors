@@ -1,4 +1,4 @@
-package redis
+package main
 
 import (
 	"github.com/ssp4599815/monitors/libmonitor/monitor"

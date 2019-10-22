@@ -1,5 +1,5 @@
 monitor:
-  config_dir: "/etc/redis_monitor/monitor.conf"
+  config_path: "/etc/redis_monitor/monitor.conf"
 
 redis:
   - line: "dev"

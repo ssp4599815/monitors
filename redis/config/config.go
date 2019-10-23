@@ -26,12 +26,14 @@ type RedisHost struct {
 
 // kafka 相关配置
 type KafkaConfig struct {
-	Version  string   `yaml:"version"`
-	Brokers  []string `yaml:"brokers"`
-	Consumer `yaml:"consumer"`
+	Version string   `yaml:"version"`
+	Topic   []string `yaml:"topic"`
+	Brokers []string `yaml:"brokers"`
+	Consumer
 }
 
 type Consumer struct {
+	GroupID                      string `yaml:"group_id"`
 	Assignor                     string `yaml:"assignor"`
 	OffsetCommitInterval         string `yaml:"offset_commit_interval"`
 	OffsetCommitIntervalDuration time.Duration

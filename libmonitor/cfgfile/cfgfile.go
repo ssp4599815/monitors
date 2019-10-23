@@ -8,7 +8,7 @@ import (
 
 func Read(out interface{}, path string) error {
 	if path == "" {
-		path = "/Users/ssp/go/src/github.com/ssp4599815/monitors/redis/config/config.yaml"
+		path = "/Users/a1800101257/go/src/github.com/ssp4599815/monitors/redis/config/config.yaml"
 	}
 
 	filecontent, err := ioutil.ReadFile(path)
@@ -20,6 +20,5 @@ func Read(out interface{}, path string) error {
 		fmt.Println(err)
 		return fmt.Errorf("YAML config parsing failed on")
 	}
-	fmt.Println(out)
 	return nil
 }

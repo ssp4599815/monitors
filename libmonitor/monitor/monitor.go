@@ -1,7 +1,6 @@
 package monitor
 
 import (
-	"github.com/ssp4599815/monitors/libmonitor/service"
 	"log"
 )
 
@@ -44,7 +43,7 @@ func (m *Monitor) Run() {
 	}
 
 	// 处理退出的信号
-	service.HandleSignals(m.MT.Stop)
+	// service.HandleSignals(m.MT.Stop)
 
 	log.Printf("%s successfully setup, Start running.", m.Name)
 
@@ -54,7 +53,7 @@ func (m *Monitor) Run() {
 		log.Panicf("Run returned an error:%v", err)
 	}
 
-	log.Printf("Cleaning up %s before shutting down.", m.Name)
+	// log.Printf("Cleaning up %s before shutting down.", m.Name)
 
 	// 清理工作
 	err = m.MT.Cleanup(m)

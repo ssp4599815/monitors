@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/ssp4599815/monitors/libmonitor/monitor"
-	redismonitor "github.com/ssp4599815/monitors/redis/monitor"
+	. "github.com/ssp4599815/monitors/redis/monitor"
 	"log"
 )
 
@@ -14,7 +14,7 @@ var (
 func main() {
 
 	// 初始化 monitor 对象
-	rm := redismonitor.RedisMonitor{}
+	rm := RedisMonitor{}
 
 	m := monitor.NewMonitor(Name, Version, &rm)
 
@@ -24,6 +24,6 @@ func main() {
 		log.Fatalf("Config error: %v", err)
 	}
 
-	// 正式运行监控程序
+	// 正式运行监控程序mo
 	m.Run()
 }

@@ -2,44 +2,29 @@ package slowlog
 
 import (
 	"fmt"
+	cfg "github.com/ssp4599815/monitors/redis/config"
+	"github.com/ssp4599815/monitors/redis/kafka"
 )
 
 type SlowLog struct {
-	Channel chan []*SlowLogEvent
+	KafkaConfig *cfg.KafkaConfig
+	Channel     chan []*msgEvent
 }
 
 // 接受来自kafka 的 slowlog 事件
-type SlowLogEvent struct {
+type msgEvent struct {
 }
 
-func NewSlowLog() *SlowLog {
+func NewSlowLog(kafkaConfig *cfg.KafkaConfig) *SlowLog {
 	s := &SlowLog{
-		Channel: make(chan []*SlowLogEvent, 1),
+		KafkaConfig: kafkaConfig,
+		Channel:     make(chan []*msgEvent, 1),
 	}
 	return s
 }
 
-func (s *SlowLog) Init() {
-
-
-}
-
 func (s *SlowLog) Run() {
-	fmt.Println("Starting SlowLog Monitor.")
-
-	for {
-		select {
-		case events := <-s.Channel:
-			s.processEvents(events)
-
-		}
-	}
-}
-
-func (s *SlowLog) processEvents(events []*SlowLogEvent) {
-	fmt.Printf(" Processing %d events", len(events))
-
-	for _, event := range events {
-		fmt.Print(event)
-	}
+	fmt.Println("开启 SlowLog Monitor...")
+	consumer := kafka.NewConsumerGroupHandler(s.KafkaConfig)
+	consumer.Start()
 }

@@ -21,9 +21,12 @@ email:
 
 kafka:
   version: "2.1.1"
+  topic:
+    - "redis-slowlog"
   brokers:
-    - "10.211.55.13:9092"
+    - "10.10.168.177:9092"
   consumer:
+    group_id: "group"
     assignor: "sticky" # 可选：sticky、roundrobin、range
     offset_commit_interval: 1s # 提交offset的间隔时间
     offset_oldest: true  # 默认为 OffsetNewest

@@ -2,24 +2,26 @@ package monitor
 
 import (
 	"fmt"
+	"github.com/ssp4599815/monitors/libmonitor/alert"
 	"github.com/ssp4599815/monitors/libmonitor/cfgfile"
 	"github.com/ssp4599815/monitors/libmonitor/monitor"
 	cfg "github.com/ssp4599815/monitors/redis/config"
+	. "github.com/ssp4599815/monitors/redis/hunter"
 	. "github.com/ssp4599815/monitors/redis/slowlog"
 	"log"
 )
 
+// Monitor object. Contains all objects needed to run the monitor.
 type RedisMonitor struct {
 	RDSConfig *cfg.Config
-	SlowLog   *SlowLog
+	Hunter    *Hunter
+	Processer *Processer
+	alertChan chan *alert.AlertEvent
 }
 
 func (rm *RedisMonitor) Config(m *monitor.Monitor) error {
 	// 加载配置文件
 	err := cfgfile.Read(&rm.RDSConfig, "")
-
-	// fmt.Printf("%#v\n", rm.RDSConfig)
-
 	if err != nil {
 		return fmt.Errorf("Error reading config file: %v\n", err)
 	}
@@ -52,5 +54,6 @@ func (rm *RedisMonitor) Cleanup(m *monitor.Monitor) error {
 }
 
 func (rm *RedisMonitor) Stop() {
-
+	// Stopping kafka consumergroup
+	rm.ConsumerGroup.Stop()
 }

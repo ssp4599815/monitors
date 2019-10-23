@@ -1,4 +1,4 @@
-package kafka
+package hunter
 
 import (
 	"context"
@@ -7,8 +7,6 @@ import (
 	cfg "github.com/ssp4599815/monitors/redis/config"
 	"github.com/ssp4599815/monitors/redis/monitor"
 	"log"
-	"os"
-	"os/signal"
 	"sync"
 	"time"
 )
@@ -20,60 +18,32 @@ type ConsumerGroupHandler struct {
 
 	consumerGroup sarama.ConsumerGroup
 	consumer      *Counsumer
-	KafkaConfig   *sarama.Config
+	saramaConfig  *sarama.Config
+	kafkaConfig   *cfg.KafkaConfig
 
-	messageChan   chan *sarama.ConsumerMessage   // 从 kafka 接受信息
-	messagesChan  chan []*sarama.ConsumerMessage // 用于将消息发送给 processer
+	messageChan   chan *sarama.ConsumerMessage   // 从 kafka 接受信息，需要定义长度
+	messagesChan  chan []*sarama.ConsumerMessage // 用于将消息发C送给 processer
 	spool         []*sarama.ConsumerMessage      // 缓冲区
 	spoolSize     int                            // 缓冲区大小
 	nextFlushTime time.Time                      // 刷新缓冲区的间隔
 }
 
 // 接受来自上层的 KafkaConfig 配置文件信息
-func NewConsumerGroupHandler(cfg *cfg.KafkaConfig) *ConsumerGroupHandler {
+func NewConsumerGroupHandler(kafkaConfig *cfg.KafkaConfig) *ConsumerGroupHandler {
 
 	cgh := &ConsumerGroupHandler{
-		spool:       make([]*sarama.ConsumerMessage, 100),
-		spoolSize:   10,
-		KafkaConfig: sarama.NewConfig(),
+		spool:        make([]*sarama.ConsumerMessage, 100),
+		spoolSize:    10,
+		saramaConfig: sarama.NewConfig(),
+		kafkaConfig:  kafkaConfig,
+		messageChan:  make(chan *sarama.ConsumerMessage, 1000), // 初始化一个 能接受1000条信息的通道
 	}
+
+	cgh.config()
+	cgh.Init()
+
 	return cgh
 }
-
-func (c *ConsumerGroupHandler) config() {
-	c.KafkaConfig.Version = c.parseKafkaVersion()
-
-	// 提交offset的间隔时间，每秒提交一次给kafka
-
-	c.KafkaConfig.Consumer.Offsets.CommitInterval = 1 * time.Second
-
-	if c.RedisMonitor.RDSConfig.Kafka.OffsetOldest {
-		// 初始从最新的offset开始
-		c.KafkaConfig.Consumer.Offsets.Initial = sarama.OffsetOldest
-	}
-
-	// 设置 消费组 reblance时的模式
-	switch c.RedisMonitor.RDSConfig.Kafka.Assignor {
-	case "sticky":
-		c.KafkaConfig.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategySticky
-	case "roundrobin":
-		c.KafkaConfig.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRoundRobin
-	case "range":
-		c.KafkaConfig.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRange
-	default:
-		// 默认设置为 sticky
-		c.KafkaConfig.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategySticky
-		log.Panicf("Unrecognized consumer group partition assignor: %s", c.RedisMonitor.RDSConfig.Kafka.Assignor)
-	}
-
-	c.KafkaConfig.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategySticky
-	// 如果发生错误，就将错误返回给 Errors channel ，默认为 false
-
-	c.KafkaConfig.Consumer.Return.Errors = c.RedisMonitor.RDSConfig.Kafka.ReturnErrors
-	// 然后进行初始化
-
-}
-
 func (c *ConsumerGroupHandler) parseKafkaVersion() sarama.KafkaVersion {
 	version, err := sarama.ParseKafkaVersion(c.RedisMonitor.RDSConfig.Kafka.Version)
 	if err != nil {
@@ -82,29 +52,56 @@ func (c *ConsumerGroupHandler) parseKafkaVersion() sarama.KafkaVersion {
 	return version
 }
 
+// 初始化相关 sarama 配置
+func (c *ConsumerGroupHandler) config() {
+	c.saramaConfig.Version = c.parseKafkaVersion()
+
+	// 提交offset的间隔时间，每秒提交一次给kafka
+	c.saramaConfig.Consumer.Offsets.CommitInterval = 1 * time.Second
+
+	if c.RedisMonitor.RDSConfig.Kafka.OffsetOldest {
+		// 初始从最新的offset开始
+		c.saramaConfig.Consumer.Offsets.Initial = sarama.OffsetOldest
+	}
+
+	// 设置 消费组 reblance时的模式
+	switch c.RedisMonitor.RDSConfig.Kafka.Assignor {
+	case "sticky":
+		c.saramaConfig.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategySticky
+	case "roundrobin":
+		c.saramaConfig.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRoundRobin
+	case "range":
+		c.saramaConfig.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategyRange
+	default:
+		// 默认设置为 sticky
+		c.saramaConfig.Consumer.Group.Rebalance.Strategy = sarama.BalanceStrategySticky
+		log.Panicf("Unrecognized consumer group partition assignor: %s", c.RedisMonitor.RDSConfig.Kafka.Assignor)
+	}
+
+	// 如果发生错误，就将错误返回给 Errors channel ，默认为 false
+	c.saramaConfig.Consumer.Return.Errors = c.RedisMonitor.RDSConfig.Kafka.ReturnErrors
+}
+
 func (c *ConsumerGroupHandler) Init() {
 	var err error
 
-	// 创建一个新的 consumer handler
-	c.consumer = NewCounsumer()
+	// 创建一个新的 consumer 队形
+	c.consumer = NewCounsumer(c.messageChan)
 
 	// 创建一个 consumergroup 对象
-	c.consumerGroup, err = sarama.NewConsumerGroup(c.KafkaConfig.Brokers, c.KafkaConfig.GroupID, config)
-	fmt.Println("已经创建了consumerGroup对象")
+	c.consumerGroup, err = sarama.NewConsumerGroup(c.kafkaConfig.Brokers, c.kafkaConfig.GroupID, c.saramaConfig)
 	if err != nil {
 		log.Println(err)
 	}
-
 }
 
-func (c *ConsumerGroupHandler) Start() {
+func (c *ConsumerGroupHandler) Run() {
 	fmt.Println("启动一个新的 Sarama consumer")
 	go c.handlerError()
 	c.wg.Add(2)
 	go c.handlerMessage()
 	go c.flushMessage()
 	c.wg.Wait()
-	go c.handlerSignal()
 }
 
 // 开始处理错误
@@ -127,19 +124,6 @@ func (c *ConsumerGroupHandler) handlerMessage() {
 			log.Panicln("Error from consumer: ", err)
 		}
 	}
-}
-
-// 监听退出信号
-func (c *ConsumerGroupHandler) handlerSignal() {
-	signals := make(chan os.Signal, 1)
-	signal.Notify(signals, os.Kill, os.Interrupt)
-	<-signals // 阻塞 并监听信号
-	log.Println("Initiating shutdown of consumer group...")
-	err := c.consumerGroup.Close()
-	if err != nil {
-		fmt.Println("Error closing client:", err)
-	}
-	os.Exit(1)
 }
 
 func (c *ConsumerGroupHandler) flushMessage() {
@@ -171,5 +155,13 @@ func (c *ConsumerGroupHandler) flush() {
 		fmt.Println("发消息给 message 通道")
 		// 发送数据给 message 通道
 		c.messagesChan <- tmpCopy
+	}
+}
+
+func (c *ConsumerGroupHandler) Stop() {
+	log.Println("Initiating shutdown of consumer group...")
+	err := c.consumerGroup.Close()
+	if err != nil {
+		fmt.Println("Error closing client:", err)
 	}
 }

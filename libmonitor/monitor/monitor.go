@@ -1,6 +1,8 @@
 package monitor
 
 import (
+	"fmt"
+	"github.com/ssp4599815/monitors/libmonitor/logp"
 	"log"
 )
 
@@ -22,7 +24,7 @@ type Monitor struct {
 }
 
 type MonitorConfig struct {
-	// log
+	Logging *logp.Logging
 	// email
 }
 
@@ -33,6 +35,15 @@ func NewMonitor(name string, version string, mt Moniter) *Monitor {
 		MT:      mt,
 	}
 	return &m
+}
+
+func (m *Monitor) LoadConfig() {
+
+	// 初始化日志记录
+	err := logp.Init(m.Name, m.Config.Logging)
+	if err != nil {
+		fmt.Printf("Error initializing logging: %v\n", err)
+	}
 }
 
 func (m *Monitor) Run() {

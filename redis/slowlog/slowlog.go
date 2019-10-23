@@ -25,6 +25,6 @@ func NewSlowLog(kafkaConfig *cfg.KafkaConfig) *SlowLog {
 
 func (s *SlowLog) Run() {
 	fmt.Println("开启 SlowLog Monitor...")
-	consumer := kafka.NewConsumerGroupHandler(s.KafkaConfig)
-	consumer.Start()
+	consumer  := hunter.NewConsumerGroupHandler(s.KafkaConfig)
+	consumer.Run()
 }

@@ -16,10 +16,10 @@ func (p *Processer) fetchMessage() {
 	}
 }
 
-//func (p *Processer) parseMessage(msg chan struct{}) string {
-//	return ""
-//}
-//
-//func (p *Processer) analyseMessage(msg string) {
-//
-//}
+func (p *Processer) parseMessage(msg chan struct{}) string {
+	return ""
+}
+
+func (p *Processer) analyseMessage(msg string) {
+
+}

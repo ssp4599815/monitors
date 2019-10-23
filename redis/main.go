@@ -24,6 +24,6 @@ func main() {
 		log.Fatalf("Config error: %v", err)
 	}
 
-	// 正式运行监控程序mo
+	// 正式运行监控程序
 	m.Run()
 }

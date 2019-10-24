@@ -30,7 +30,7 @@ func (rotator *FileRotator) CreateDirectory() error {
 	if err == nil {
 		// 要对一个目录下的文件进行切割
 		if !fileinfo.IsDir() { // 如果不是一个目录
-			return fmt.Errorf("%s exists but it's not a directory", rotate.Path)
+			return fmt.Errorf("%s exists but it's not a directory", rotator.Path)
 		}
 	}
 
@@ -40,7 +40,6 @@ func (rotator *FileRotator) CreateDirectory() error {
 			return err
 		}
 	}
-
 	return nil
 }
 

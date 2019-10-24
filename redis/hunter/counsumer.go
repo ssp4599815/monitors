@@ -32,7 +32,6 @@ func (c *Counsumer) Cleanup(sarama.ConsumerGroupSession) error {
 func (c *Counsumer) ConsumeClaim(session sarama.ConsumerGroupSession, cliaim sarama.ConsumerGroupClaim) error {
 	fmt.Println("开始接受kafka 发来的信息。。。")
 	for message := range cliaim.Messages() {
-		fmt.Println(message)
 		c.messageChan <- message // 将消息放入到一个通道中
 		session.MarkMessage(message, "")
 	}

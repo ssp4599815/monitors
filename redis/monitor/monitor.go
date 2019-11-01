@@ -43,7 +43,7 @@ func (rm *RedisMonitor) Run(m *monitor.Monitor) error {
 	//	log.Fatalf("recovered panic: %v", p)
 	//}()
 
-	msgChan := make(chan *sarama.ConsumerMessage, 1000)
+	msgChan := make(chan *sarama.ConsumerMessage, 1000) // 用来接收来自kafka的信息
 
 	// 从 kafka 中消费数据
 	fmt.Println("开始从 kafka 中消费数据")

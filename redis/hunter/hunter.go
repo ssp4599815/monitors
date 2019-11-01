@@ -22,5 +22,5 @@ func NewHunter(kafkaConfig config.KafkaConfig, msgChan chan *sarama.ConsumerMess
 
 func (h *Hunter) Run() {
 	handler := NewConsumerGroupHandler(h.KafkaConfig, h.MessageChan)
-	go handler.Start()
+	go handler.Start()  // 需要放到后台去运行
 }

@@ -33,6 +33,7 @@ func (c *Counsumer) ConsumeClaim(session sarama.ConsumerGroupSession, cliaim sar
 	fmt.Println("开始接受kafka 发来的信息。。。")
 	for message := range cliaim.Messages() {
 		c.messageChan <- message // 将消息放入到一个通道中
+		fmt.Println("当前 messageChan 队列的长度：", len(c.messageChan))
 		session.MarkMessage(message, "")
 	}
 	return nil

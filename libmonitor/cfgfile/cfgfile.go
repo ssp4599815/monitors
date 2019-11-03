@@ -8,7 +8,7 @@ import (
 
 func Read(out interface{}, path string) error {
 	if path == "" {
-		path = "/Users/a1800101257/go/src/github.com/ssp4599815/monitors/redis/config/config.yaml"
+		path = "/Users/ssp/go/src/github.com/ssp4599815/monitors/redis/config/config.yaml"
 	}
 
 	filecontent, err := ioutil.ReadFile(path)

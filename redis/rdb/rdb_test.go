@@ -10,7 +10,7 @@ import (
 
 func TestRDB(t *testing.T) {
 	baseDir, _ := os.Getwd()
-	rdbFile := path.Join(baseDir, "dumps", "dump.rdb")
+	rdbFile := path.Join(baseDir, "dumps", "dump-lfu.rdb")
 	fmt.Println(rdbFile)
 	handler, err := os.Open(rdbFile)
 	if err != nil {

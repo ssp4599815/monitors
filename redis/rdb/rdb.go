@@ -47,25 +47,26 @@ const (
 )
 
 type RDB struct {
-	handler *bufio.Reader
+	rd *bufio.Reader
 
 	version int
 
-	expiry uint64
+	expiry uint64 // 当前key的过期时间，毫秒计算
+	idle   uint64
+	freq   byte
 }
 
-func NewRDB(handler *bufio.Reader) *RDB {
-	r := &RDB{handler: handler}
+func NewRDB(rd *bufio.Reader) *RDB {
+	r := &RDB{
+		rd: rd,
+	}
 	return r
 }
 
 func (r *RDB) Parse() (err error) {
-	// 初始化
-	r.expiry = 0
-
 	// 获取  REDIS | RDB-VERSION
 	headbuf := make([]byte, 9)
-	_, err = io.ReadFull(r.handler, headbuf)
+	_, err = io.ReadFull(r.rd, headbuf)
 	if err != nil {
 		return
 	}
@@ -79,42 +80,46 @@ func (r *RDB) Parse() (err error) {
 	log.Infof("Start parse rdb file")
 
 	for {
+		// 初始化
+		r.expiry = 0
+		r.idle = 0
+		r.freq = 0
 
 		/* Read type. */
 		// 首先读出类型
-		dtype, err := r.handler.ReadByte()
+		dtype, err := r.rd.ReadByte()
 		if err != nil {
-			fmt.Println(err)
+			return err
 		}
-		fmt.Println(dtype)
-
+		fmt.Println(string(dtype), dtype)
 		/* Handle special types. */
 		if dtype == RDBOpcodeExpireTime {
 			/* EXPIRETIME: load an expire associated with the next key to load */
-			err = binary.Read(r.handler, binary.LittleEndian, &r.expiry)
+			var expireSecond uint32
+			err = binary.Read(r.rd, binary.LittleEndian, &expireSecond)
 			if err != nil {
 				return err
 			}
+			r.expiry = uint64(expireSecond * 1000)
+			fmt.Println("过期时间为：", r.expiry)
 			continue
 
-		} else if dtype == RDBOpcodeExpireTimeMS {
+		} else if dtype == RDBOpcodeExpireTimeMS { // 新版本 rdb 都使用 RDB_OPCODE_EXPIRETIME_MS
 			/* EXPIRETIME_MS: milliseconds precision expire times introduced */
-			var expireSecond uint64
-			err := binary.Read(r.handler, binary.LittleEndian, expireSecond)
+			err := binary.Read(r.rd, binary.LittleEndian, &r.expiry) // 必须为 & 才可以取到值
 			if err != nil {
 				return err
 			}
-			r.expiry = expireSecond * 1000
-
+			fmt.Println("过期时间为：", r.expiry)
 			continue
 		} else if dtype == RDBOpcodeFreq {
 			/* FREQ: LFU frequency. */
-			freq, err := r.handler.ReadByte()
+			freq, err := r.rd.ReadByte()
 			if err != nil {
 				return err
 			}
 
-			fmt.Println("freq:", freq)
+			fmt.Println("LFU frequency:", freq)
 
 			continue
 		} else if dtype == RDBOpcodeIdle {
@@ -123,18 +128,20 @@ func (r *RDB) Parse() (err error) {
 			if err != nil {
 				return err
 			}
-			fmt.Println("idle:", idle)
+			fmt.Println("LRU idle time:", idle)
 			continue
 		} else if dtype == RDBOpcodeEOF {
 			/* EOF: End of file, exit the main loop. */
-
 			log.Infof("finish rdb reading of upstream")
 			//  8字节的 CRC64 表示的文件校验和
+			// TODO: Verify the checksum if RDB version is >= 5
 			if r.version >= 5 {
-				_, err := io.ReadFull(r.handler, headbuf[:8])
+				_, err := io.ReadFull(r.rd, headbuf[:8])
 				if err != nil {
 					return nil
 				}
+
+				fmt.Println("rdb_checksum", headbuf)
 			}
 			return nil
 		} else if dtype == RDBOpcodeSelectDB {
@@ -151,11 +158,11 @@ func (r *RDB) Parse() (err error) {
 			/* RESIZEDB: Hint about the size of the keys in the currently selected data base */
 			dbSize, err := r.readLength()
 			if err != nil {
-				return
+				return err
 			}
 			expireSize, err := r.readLength()
 			if err != nil {
-				return
+				return err
 			}
 
 			fmt.Println("dbSize, expireSize", dbSize, expireSize)
@@ -187,31 +194,31 @@ func (r *RDB) Parse() (err error) {
 				case RDBModuleOpcodeSInt, RDBModuleOpcodeUInt:
 					_, err = r.readLength()
 					if err != nil {
-						return
+						return err
 					}
 				case RDBModuleOpcodeFloat:
 					_, err = r.readBinaryFloat()
 					if err != nil {
-						return
+						return err
 					}
 				case RDBModuleOpcodeDouble:
 					_, err = r.readBinaryDouble()
 					if err != nil {
-						return
+						return err
 					}
 				case RDBModuleOpcodeString:
 					_, err = r.readString()
 					if err != nil {
-						return
+						return err
 					}
 				default:
 					err = fmt.Errorf("unknown module opcode %d", opcode)
-					return
+					return err
 				}
 
 				opcode, err = r.readLength()
 				if err != nil {
-					return
+					return err
 				}
 			}
 
@@ -222,6 +229,7 @@ func (r *RDB) Parse() (err error) {
 		if err != nil {
 			return err
 		}
+		fmt.Println(key)
 		/* Read value */
 		err = r.readObject(dtype)
 		if err != nil {
@@ -238,7 +246,7 @@ func (r *RDB) verifyHeader(hd []byte) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(version)
+	log.Infof("当前Redis rdb 版本为：%d", version)
 	r.version = int(version)
 	return nil
 }
@@ -247,7 +255,7 @@ func (r *RDB) readLength() (length uint64, err error) {
 	var (
 		data byte
 	)
-	data, err = r.handler.ReadByte()
+	data, err = r.rd.ReadByte()
 	if err != nil {
 		return
 	}
@@ -263,20 +271,20 @@ func (r *RDB) readLength() (length uint64, err error) {
 		length = uint64(data & 0x3f)
 	} else if flag == RDB14BitLen {
 		length = uint64(data&0x3f) << 8
-		data, err = r.handler.ReadByte()
+		data, err = r.rd.ReadByte()
 		if err != nil {
 			return
 		}
 		length |= uint64(data)
 	} else if data == RDB32BitLen {
 		var l uint32
-		err = binary.Read(r.handler, binary.BigEndian, &l)
+		err = binary.Read(r.rd, binary.BigEndian, &l)
 		if err != nil {
 			return
 		}
 		length = uint64(l)
 	} else if data == RDB64BitLen {
-		err = binary.Read(r.handler, binary.BigEndian, &length)
+		err = binary.Read(r.rd, binary.BigEndian, &length)
 	}
 
 	return

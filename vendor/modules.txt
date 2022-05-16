@@ -30,11 +30,11 @@ github.com/pierrec/lz4/internal/xxh32
 github.com/rcrowley/go-metrics
 # github.com/sirupsen/logrus v1.4.2
 github.com/sirupsen/logrus
-# github.com/tidwall/gjson v1.3.2
+# github.com/tidwall/gjson v1.9.3
 github.com/tidwall/gjson
-# github.com/tidwall/match v1.0.1
+# github.com/tidwall/match v1.1.1
 github.com/tidwall/match
-# github.com/tidwall/pretty v1.0.0
+# github.com/tidwall/pretty v1.2.0
 github.com/tidwall/pretty
 # golang.org/x/crypto v0.0.0-20190404164418-38d8ce5564a5
 golang.org/x/crypto/md4

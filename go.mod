@@ -7,5 +7,5 @@ require (
 	github.com/klauspost/cpuid v1.2.1 // indirect
 	github.com/sirupsen/logrus v1.4.2
 	github.com/tidwall/gjson v1.3.2
-	gopkg.in/yaml.v2 v2.2.4
+	gopkg.in/yaml.v2 v2.2.8
 )
